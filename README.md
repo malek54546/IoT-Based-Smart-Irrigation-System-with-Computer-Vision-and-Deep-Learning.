@@ -13,8 +13,7 @@ a rechargeable battery, the system is practical, energy-efficient, and reduces m
 solution promotes sustainable agriculture by minimizing water waste and enabling precise, 
 automated irrigation.
 
-
-
+_____________________________________________________________________________________________________
 
 Plant Health Monitoring via MobileNetV2: the disease detection module, we implemented a Deep Learning model based on the MobileNetV2 architecture. This choice was driven by the need for an efficient, lightweight model capable of performing real-time diagnosis on edge computing devices (Raspberry Pi).
 
@@ -79,7 +78,7 @@ Epoch 10: early stopping.
 
 ##################################################################################
 
-#Sample Plant Images and Classification Results: 
+# Sample Plant Images and Classification Results: 
 
 https://drive.google.com/drive/folders/13Pvsk8UNOjJi7EyT-d-oNDM6-HNlCKIG?usp=sharing
 
