@@ -1,3 +1,16 @@
+// Microcontroller: ESP32 ESP-WROOM-32 
+
+//#Sensors:
+//- Soil Moisture Sensor 
+//-Temperature and Humidity Sensor (DHT22) 
+//-Ultrasonic Sensor (HC-SR04) 
+//-Relay Module 
+//-Water Pump and Irrigation Tubing 
+//-LCD Display (16×4 I2C) 
+//-rechargeable 7.4V lithium-ion battery
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #define BLYNK_TEMPLATE_ID "TMPL6yfoNht02" 
 #define BLYNK_TEMPLATE_NAME "Smart Irrigation System" 
 #define BLYNK_AUTH_TOKEN    "uk45alNPTWoguEuJUUqhGy3Fi232LF44" 
