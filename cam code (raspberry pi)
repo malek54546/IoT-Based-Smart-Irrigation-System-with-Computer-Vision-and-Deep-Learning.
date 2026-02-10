@@ -1,3 +1,8 @@
+#Plant Monitoring Camera and AI Processing Unit 
+# Raspberry Pi 3,4 or 5
+
+##########################################################################################################
+
 import cv2
 import numpy as np
 import time
@@ -17,9 +22,9 @@ GREEN_RATIO_THR  = 0.10
 MIN_ROI_AREA     = 3000  
 
 # SETTINGS
-TFLITE_THREADS   = 2 # جرّب 2/3/4
-PREDICT_EVERY_N  = 3 # ✅ تنبؤ كل كم فريم (1=كل فريم)
-FAST_MASK        = True   # ✅ تقليل عمليات الماسك
+TFLITE_THREADS   = 2 
+PREDICT_EVERY_N  = 3 
+FAST_MASK        = True
 
 # ROI/Mask 
 PROC_W, PROC_H = 400, 320
