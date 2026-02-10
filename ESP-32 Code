@@ -1,0 +1,251 @@
+#define BLYNK_TEMPLATE_ID "TMPL6yfoNht02" 
+#define BLYNK_TEMPLATE_NAME "Smart Irrigation System" 
+#define BLYNK_AUTH_TOKEN    "uk45alNPTWoguEuJUUqhGy3Fi232LF44" 
+#define BLYNK_PRINT Serial 
+#include <WiFi.h> 
+#include <WiFiClient.h> 
+#include <BlynkSimpleEsp32.h> 
+char ssid[] = "TEST_WIFI"; 
+char pass[] = "12345678"; 
+BlynkTimer timer; 
+#include <Wire.h> 
+#include <LiquidCrystal_I2C.h> 
+#include <DHT.h> 
+
+// Grape soil 
+#define SOIL_GRAPE_PIN   32   // Grape sensor 
+#define RELAY_GRAPE_PIN  23   // Grape pump 
+ 
+// Apple soil 
+#define SOIL_APPLE_PIN   33   // Apple sensor 
+#define RELAY_APPLE_PIN  25   // Apple pump 
+#define DHT_PIN     4 
+#define DHT_TYPE    DHT22 
+#define TRIG_PIN    12 
+#define ECHO_PIN    14 
+LiquidCrystal_I2C lcd(0x27, 20, 4); 
+DHT dht(DHT_PIN, DHT_TYPE); 
+#define RELAY_ON  LOW 
+#define RELAY_OFF HIGH 
+int DRY_VALUE = 4095; 
+int WET_VALUE = 1950; 
+#define SOIL_START_THRESHOLD 35 
+#define SOIL_STOP_THRESHOLD  55 
+#define TANK_HEIGHT 17.0 
+bool pumpGrapeStatus = false;  
+bool pumpAppleStatus = false; 
+bool showGrapeOnLcd = true; 
+unsigned long lastDisplaySwitch = 0; 
+const unsigned long DISPLAY_SWITCH_INTERVAL = 5000; 
+unsigned long lastLcdUpdate = 0; 
+const unsigned long LCD_UPDATE_INTERVAL = 500; 
+float readWaterLevel(); 
+int   calculateWaterPercentage(float wl); 
+void  controlPumps(int grapeSoil, int appleSoil, float wl); 
+BLYNK_WRITE(V0) 
+{ 
+} 
+int x = param.asInt(); 
+digitalWrite(RELAY_GRAPE_PIN, x ? RELAY_ON : RELAY_OFF); 
+pumpGrapeStatus = x; 
+BLYNK_WRITE(V1) 
+{ 
+int x = param.asInt(); 
+digitalWrite(RELAY_APPLE_PIN, x ? RELAY_ON : RELAY_OFF); 
+pumpAppleStatus = x;  
+} 
+
+// Datastreams: 
+// V2 grape_pump_status 
+// V3 apple_pump_status 
+// V4 temperature 
+// V5 humidity 
+// V6 grape_soil 
+// V7 apple_soil 
+// V8 water_level 
+// V9 water_percent 
+void sendSensorData() 
+{ 
+int grapeVal = analogRead(SOIL_GRAPE_PIN); 
+int appleVal = analogRead(SOIL_APPLE_PIN); 
+int grapeSoil = map(grapeVal, WET_VALUE, DRY_VALUE, 100, 0); 
+int appleSoil = map(appleVal, WET_VALUE, DRY_VALUE, 100, 0); 
+grapeSoil = constrain(grapeSoil, 0, 100); 
+appleSoil = constrain(appleSoil, 0, 100); 
+float t = dht.readTemperature(); 
+float h = dht.readHumidity(); 
+  
+    float wl = readWaterLevel(); 
+    int wp = calculateWaterPercentage(wl); 
+ 
+    if (Blynk.connected()) { 
+      // Sensors 
+      Blynk.virtualWrite(V4, t);          // temperature 
+      Blynk.virtualWrite(V5, h);          // humidity 
+      Blynk.virtualWrite(V6, grapeSoil);  // grape_soil 
+      Blynk.virtualWrite(V7, appleSoil);  // apple_soil 
+      Blynk.virtualWrite(V8, wl);         // water_level (cm) 
+      Blynk.virtualWrite(V9, wp);         // water_percent (%) 
+      Blynk.virtualWrite(V2, pumpGrapeStatus ? 1 : 0); // grape_pump_status 
+      Blynk.virtualWrite(V3, pumpAppleStatus ? 1 : 0); // apple_pump_status 
+    } 
+ 
+    Serial.println("Blynk data updated"); 
+} 
+ 
+void setup() { 
+    Serial.begin(115200); 
+ 
+    Wire.begin(21, 22); 
+    lcd.init(); 
+    lcd.backlight(); 
+pinMode(RELAY_GRAPE_PIN, OUTPUT); 
+pinMode(RELAY_APPLE_PIN, OUTPUT); 
+digitalWrite(RELAY_GRAPE_PIN, RELAY_OFF); 
+digitalWrite(RELAY_APPLE_PIN, RELAY_OFF); 
+pinMode(TRIG_PIN, OUTPUT); 
+pinMode(ECHO_PIN, INPUT); 
+dht.begin(); 
+lcd.print("System Starting..."); 
+delay(2000); 
+lcd.clear(); 
+WiFi.begin(ssid, pass); 
+while (WiFi.status() != WL_CONNECTED) { 
+Serial.print("."); 
+delay(300); 
+} 
+Serial.println("\nWiFi Connected!"); 
+Blynk.config(BLYNK_AUTH_TOKEN); 
+Blynk.connect();  
+timer.setInterval(5000L, sendSensorData); 
+} 
+
+void loop() { 
+Blynk.run(); 
+timer.run(); 
+int grapeVal = analogRead(SOIL_GRAPE_PIN); 
+int appleVal = analogRead(SOIL_APPLE_PIN); 
+int grapeSoil = map(grapeVal, WET_VALUE, DRY_VALUE, 100, 0); 
+int appleSoil = map(appleVal, WET_VALUE, DRY_VALUE, 100, 0); 
+grapeSoil = constrain(grapeSoil, 0, 100); 
+appleSoil = constrain(appleSoil, 0, 100); 
+float t = dht.readTemperature(); 
+float h = dht.readHumidity(); 
+float wl = readWaterLevel(); 
+int wp = calculateWaterPercentage(wl); 
+controlPumps(grapeSoil, appleSoil, wl); 
+unsigned long now = millis(); 
+ 
+ 
+    if (now - lastDisplaySwitch > DISPLAY_SWITCH_INTERVAL) { 
+        lastDisplaySwitch = now; 
+        showGrapeOnLcd = !showGrapeOnLcd; 
+    } 
+ 
+    // ========================== 
+    // LCD (20x4) Layout  بولطملا 
+    // Line1: Temp 
+    // Line2: Humidity 
+    // Line3: Plant name 
+    // Line4: Soil moisture of that plant 
+    // ========================== 
+    if (now - lastLcdUpdate > LCD_UPDATE_INTERVAL) { 
+        lastLcdUpdate = now; 
+ 
+        lcd.clear(); 
+ 
+        // ===== Line 1: Temperature ===== 
+        lcd.setCursor(0, 0); 
+        lcd.print("Temp: "); 
+        if (!isnan(t)) { 
+            lcd.print(t, 1); 
+            lcd.print(" C"); 
+        } else { 
+  
+ 
+            lcd.print("Err"); 
+        } 
+ 
+        // ===== Line 2: Humidity ===== 
+        lcd.setCursor(0, 1); 
+        lcd.print("Humidity: "); 
+        if (!isnan(h)) { 
+            lcd.print(h, 1); 
+            lcd.print(" %"); 
+        } else { 
+            lcd.print("Err"); 
+        } 
+ 
+        // ===== Line 3: Plant Name ===== 
+        lcd.setCursor(0, 2); 
+        lcd.print("Plant: "); 
+        if (showGrapeOnLcd) { 
+            lcd.print("Grape"); 
+        } else { 
+            lcd.print("Apple"); 
+        } 
+ 
+        // ===== Line 4: Soil Moisture ===== 
+        lcd.setCursor(0, 3); 
+        lcd.print("Soil: "); 
+  
+ 
+        if (showGrapeOnLcd) { 
+            lcd.print(grapeSoil); 
+        } else { 
+            lcd.print(appleSoil); 
+        } 
+        lcd.print(" %"); 
+ 
+        // Serial log (يرايتخا) 
+        Serial.print("Temp="); Serial.print(t); 
+        Serial.print("C  Hum="); Serial.print(h); 
+        Serial.print("% | GrapeSoil="); Serial.print(grapeSoil); 
+        Serial.print("% Pump1="); Serial.print(pumpGrapeStatus ? "ON" : "OFF"); 
+        Serial.print(" | AppleSoil="); Serial.print(appleSoil); 
+        Serial.print("% Pump2="); Serial.print(pumpAppleStatus ? "ON" : "OFF"); 
+        Serial.print(" | Water="); Serial.print(wl); 
+        Serial.print("cm ("); Serial.print(wp); Serial.println("%)"); 
+    } 
+} 
+ 
+float readWaterLevel() { 
+ 
+    digitalWrite(TRIG_PIN, LOW); 
+    delayMicroseconds(2); 
+ 
+    digitalWrite(TRIG_PIN, HIGH); 
+delayMicroseconds(10); 
+digitalWrite(TRIG_PIN, LOW); 
+long duration = pulseIn(ECHO_PIN, HIGH, 30000); 
+if (duration == 0) return -1; 
+float distance = duration * 0.034 / 2.0; 
+float wl = TANK_HEIGHT - distance; 
+if (wl < 0) wl = 0; 
+if (wl > TANK_HEIGHT) wl = TANK_HEIGHT; 
+return wl; 
+} 
+int calculateWaterPercentage(float wl) { 
+if (wl < 0) return 0; 
+return constrain((wl / TANK_HEIGHT) * 100, 0, 100); 
+} 
+void controlPumps(int grapeSoil, int appleSoil, float wl) { 
+if (!pumpGrapeStatus && grapeSoil <= SOIL_START_THRESHOLD) { 
+  
+        digitalWrite(RELAY_GRAPE_PIN, RELAY_ON); 
+        pumpGrapeStatus = true; 
+    } 
+    else if (pumpGrapeStatus && grapeSoil >= SOIL_STOP_THRESHOLD) { 
+        digitalWrite(RELAY_GRAPE_PIN, RELAY_OFF); 
+        pumpGrapeStatus = false; 
+    } 
+ 
+    if (!pumpAppleStatus && appleSoil <= SOIL_START_THRESHOLD) { 
+        digitalWrite(RELAY_APPLE_PIN, RELAY_ON); 
+        pumpAppleStatus = true; 
+    } 
+    else if (pumpAppleStatus && appleSoil >= SOIL_STOP_THRESHOLD) { 
+        digitalWrite(RELAY_APPLE_PIN, RELAY_OFF); 
+        pumpAppleStatus = false; 
+    } 
+}
