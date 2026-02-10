@@ -34,7 +34,7 @@ o Val_accuracy : 96.2 %
 
 ###############################################################################
 
-#Training...
+# Training...
 
 Epoch 1/13
 Epoch 1: val accuracy improved from -inf to 0.88587, saving model to C:\Users\malek\Desktop\msf\G_A_mlnet.h5
