@@ -1,0 +1,273 @@
+import cv2
+import numpy as np
+import tensorflow as tf
+import requests
+import time
+from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
+
+# =========================
+# Paths / Settings
+# =========================
+MODEL_PATH   = r"C:\Users\malek\Desktop\msf\G_A_mlnet.h5"
+CLASSES_PATH = r"C:\Users\malek\Desktop\msf\G&A_mlnet.txt"
+CAM_INDEX    = 0  # 0 = built-in camera, 1 = USB camera
+
+# Reject thresholds
+CONF_THR    = 0.70
+MARGIN_THR  = 0.15
+
+MIRROR      = True
+SHOW_FPS    = True
+SHOW_BOX    = True
+
+# =========================
+# Blynk (REST API – same style as old code)
+# =========================
+BLYNK_TOKEN = "uk45alNPTWoguEuJUUqhGy3Fi232LF44"
+BLYNK_EVENT_CODE = "leaf_disease"
+
+def blynk_log_event(event_code: str, description: str):
+    url = "https://blynk.cloud/external/api/logEvent"
+    try:
+        r = requests.get(url, params={
+            "token": BLYNK_TOKEN,
+            "code": event_code,
+            "description": description
+        }, timeout=5)
+    except Exception as e:
+        print("Blynk error:", e)
+
+def blynk_write(vpin: int, value):
+    url = "https://blynk.cloud/external/api/update"
+    try:
+        requests.get(url, params={"token": BLYNK_TOKEN, f"v{vpin}": value}, timeout=3)
+    except:
+        pass
+
+# =========================
+# Alert control (anti-spam logic)
+# =========================
+ALERT_MIN_CONF = 0.75
+ALERT_COOLDOWN_SEC = 121
+REPEAT_REQUIRED = 3
+
+_last_alert_time = 0.0
+_last_sent_label = None
+_repeat_label = None
+_repeat_count = 0
+
+def handle_alerts(label: str, conf: float):
+    """Send Blynk event only after confirmation (anti-spam)."""
+    global _last_alert_time, _last_sent_label, _repeat_label, _repeat_count
+
+    # Live values (optional)
+    if BLYNK_TOKEN and "PUT_YOUR_BLYNK_TOKEN_HERE" not in BLYNK_TOKEN:
+        blynk_write(10, label)            # V10: predicted label
+        blynk_write(11, int(conf * 100))  # V11: confidence %
+
+    if label.startswith("Unknown"):
+        _repeat_label = None
+        _repeat_count = 0
+        return
+
+    if conf < ALERT_MIN_CONF:
+        return
+
+    # Require repeated detections
+    if _repeat_label == label:
+        _repeat_count += 1
+    else:
+        _repeat_label = label
+        _repeat_count = 1
+
+    now = time.time()
+    if _repeat_count >= REPEAT_REQUIRED:
+        if (now - _last_alert_time) >= ALERT_COOLDOWN_SEC or (_last_sent_label != label):
+            msg = f"Leaf detected: {label} ({conf*100:.1f}%)"
+            if BLYNK_TOKEN and "PUT_YOUR_BLYNK_TOKEN_HERE" not in BLYNK_TOKEN:
+                blynk_log_event(BLYNK_EVENT_CODE, msg)
+            _last_alert_time = now
+            _last_sent_label = label
+            _repeat_count = 0
+
+# =========================
+# Load classes (supports: index\tname or name only)
+# =========================
+classes = []
+with open(CLASSES_PATH, encoding="utf-8") as f:
+    for line in f:
+        line = line.strip()
+        if not line:
+            continue
+        if "\t" in line:
+            _, name = line.split("\t", 1)
+            classes.append(name)
+        else:
+            classes.append(line)
+
+print("Classes loaded:", len(classes))
+print("First classes:", classes[:5])
+
+# =========================
+# Load model
+# =========================
+model = tf.keras.models.load_model(MODEL_PATH, compile=False)
+h = int(model.input_shape[1] or 224)
+w = int(model.input_shape[2] or 224)
+print("Model input:", model.input_shape)
+
+# =========================
+# Leaf segmentation + crop (HSV-based)
+# =========================
+def segment_leaf(bgr):
+    img = bgr.copy()
+    H, W = img.shape[:2]
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+    # Green color ranges
+    lower1 = np.array([25, 60, 60])
+    upper1 = np.array([85, 255, 255])
+    lower2 = np.array([15, 55, 55])
+    upper2 = np.array([95, 255, 255])
+
+    mask1 = cv2.inRange(hsv, lower1, upper1)
+    mask2 = cv2.inRange(hsv, lower2, upper2)
+    mask  = cv2.bitwise_or(mask1, mask2)
+
+    # Remove low saturation areas
+    sat = hsv[:, :, 1]
+    mask[sat < 60] = 0
+
+    # Morphological filtering
+    mask = cv2.GaussianBlur(mask, (5,5), 0)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN,  np.ones((5,5), np.uint8), iterations=1)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((7,7), np.uint8), iterations=2)
+
+    cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not cnts:
+        return None, None
+
+    cnt = max(cnts, key=cv2.contourArea)
+    area = cv2.contourArea(cnt)
+    if area < 0.5 * (H * W):
+        return None, None
+
+    x, y, w0, h0 = cv2.boundingRect(cnt)
+    margin = int(0.06 * max(w0, h0))
+    x0 = max(0, x - margin)
+    y0 = max(0, y - margin)
+    x1 = min(W, x + w0 + margin)
+    y1 = min(H, y + h0 + margin)
+
+    crop = img[y0:y1, x0:x1].copy()
+
+    # Validate crop color statistics
+    crop_hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
+    h_mean = crop_hsv[:, :, 0].mean()
+    s_mean = crop_hsv[:, :, 1].mean()
+    if not (30 <= h_mean <= 95 and s_mean >= 60):
+        return None, None
+
+    box = (x0, y0, x1 - x0, y1 - y0)
+    return crop, box
+
+# =========================
+# MobileNetV2 preprocessing + prediction
+# =========================
+def preprocess_frame(bgr):
+    rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+    resized = cv2.resize(rgb, (w, h), interpolation=cv2.INTER_AREA)
+    x = resized.astype(np.float32)
+    x = np.expand_dims(x, axis=0)
+    x = preprocess_input(x)
+    return x
+
+def predict_top2(bgr):
+    x = preprocess_frame(bgr)
+    probs = model.predict(x, verbose=0)[0]
+
+    top2 = probs.argsort()[-2:][::-1]
+    i1, i2 = int(top2[0]), int(top2[1])
+    p1, p2 = float(probs[i1]), float(probs[i2])
+
+    label1 = classes[i1] if i1 < len(classes) else f"class_{i1}"
+    label2 = classes[i2] if i2 < len(classes) else f"class_{i2}"
+
+    # Reject uncertain predictions
+    if (p1 < CONF_THR) or ((p1 - p2) < MARGIN_THR):
+        return "Unknown / Not sure", p1, (label1, p1, label2, p2)
+
+    return label1, p1, (label1, p1, label2, p2)
+
+def draw_hud(frame, lines, color=(0, 255, 0)):
+    y = 28
+    for text in lines:
+        cv2.putText(frame, text, (10, y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,0,0), 3, cv2.LINE_AA)
+        cv2.putText(frame, text, (10, y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 1, cv2.LINE_AA)
+        y += 24
+
+# =========================
+# Camera loop
+# =========================
+cap = cv2.VideoCapture(CAM_INDEX)
+if not cap.isOpened():
+    raise RuntimeError("❌ Cannot open camera. Try CAM_INDEX=1 or check camera connection.")
+
+last_t = time.time()
+fps = 0.0
+
+print("Controls: q=quit | f=flip")
+while True:
+    ok, frame = cap.read()
+    if not ok:
+        break
+
+    if MIRROR:
+        frame = cv2.flip(frame, 1)
+
+    crop, box = segment_leaf(frame)
+
+    disp = frame.copy()
+    if crop is not None and SHOW_BOX:
+        x, y, ww, hh = box
+        cv2.rectangle(disp, (x, y), (x+ww, y+hh), (0, 255, 0), 2)
+
+    target = crop if crop is not None else frame
+
+    pred_label, pred_prob, topinfo = predict_top2(target)
+    top1_lbl, top1_p, top2_lbl, top2_p = topinfo
+
+    is_unknown = pred_label.startswith("Unknown")
+    color = (0, 255, 255) if is_unknown else (0, 255, 0)
+
+    lines = [
+        f"Pred: {pred_label} ({pred_prob:.2f})",
+        f"Top1: {top1_lbl} ({top1_p:.2f}) | Top2: {top2_lbl} ({top2_p:.2f})",
+        f"Crop: {'YES' if crop is not None else 'NO'}"
+    ]
+    draw_hud(disp, lines, color=color)
+
+    handle_alerts(pred_label, pred_prob)
+
+    if SHOW_FPS:
+        now = time.time()
+        dt = now - last_t
+        last_t = now
+        fps = 0.9*fps + 0.1*(1.0/dt if dt > 0 else 0.0)
+        cv2.putText(disp, f"FPS: {fps:.1f}", (disp.shape[1]-120, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,0), 3, cv2.LINE_AA)
+        cv2.putText(disp, f"FPS: {fps:.1f}", (disp.shape[1]-120, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 1, cv2.LINE_AA)
+
+    cv2.imshow("Grape Live Prediction (MobileNetV2 + HSV Crop + Blynk)", disp)
+
+    key = cv2.waitKey(1) & 0xFF
+    if key in (27, ord("q")):
+        break
+    if key in (ord("f"), ord("F")):
+        MIRROR = not MIRROR
+
+cap.release()
+cv2.destroyAllWindows()
