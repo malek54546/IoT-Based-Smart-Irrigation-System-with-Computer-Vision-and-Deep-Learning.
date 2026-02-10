@@ -1,0 +1,14 @@
+import tensorflow as tf
+
+H5_PATH    = r"C:\Users\malek\Desktop\msf\G_A_mlnet.h5"
+TFLITE_OUT = r"C:\Users\malek\Desktop\msf\G_A_mnet_float32msf.tflite"
+
+model = tf.keras.models.load_model(H5_PATH, compile=False)
+
+converter = tf.lite.TFLiteConverter.from_keras_model(model)
+tflite_model = converter.convert()
+
+with open(TFLITE_OUT, "wb") as f:
+    f.write(tflite_model)
+
+print("Saved:", TFLITE_OUT)
