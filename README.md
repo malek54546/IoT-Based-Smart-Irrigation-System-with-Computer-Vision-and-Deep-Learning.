@@ -1,6 +1,6 @@
 # IoT-Based Smart Irrigation System with Computer Vision and Deep-Learning.
 
-############################################################################################################
+#########################################################################################################
 
 Plant Health Monitoring via MobileNetV2: 
 the disease detection module, we implemented a Deep Learning model based on the 
@@ -22,5 +22,9 @@ o Epochs: 13 (reaching convergence with high stability).
 
 o Optimization: Adam Optimizer with a learning rate of 0.0001 and Dropout (0.2) to 
 prevent overfitting. 
+
+
+
+
 
 
