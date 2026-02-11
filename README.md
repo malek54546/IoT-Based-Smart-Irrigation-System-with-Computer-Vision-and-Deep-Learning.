@@ -21,6 +21,20 @@ Plant Health Monitoring via MobileNetV2: the disease detection module, we implem
 
 • Dataset & Training: The model was trained on a specialized dataset containing images of Apple and Grape leaves, covering various pathologies like Apple Scab and Black Rot.
 
+- This training included 8 categories:
+
+  Apple___Apple_scab                                            Grape___Black_rot
+  
+  Apple___Black_rot                                            	Grape___Esca_(Black_Measles)
+
+	Apple___Cedar_apple_rust                                      Grape___Leaf_blight_(Isariopsis_Leaf_Spot)
+
+	Apple___healthy                                               Grape___healthy
+
+
+	
+
+
 • Training Parameters:
 
 o Image Input: Resized to 224x224 pixels.
