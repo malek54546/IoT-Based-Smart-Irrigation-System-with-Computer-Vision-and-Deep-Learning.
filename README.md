@@ -126,7 +126,9 @@ The app interface displays:
   
 - Disease detection notifications
 
+
   
+![Blynk1](Blynk%201.png)
 
 
 
