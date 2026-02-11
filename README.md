@@ -82,8 +82,16 @@ Epoch 10: early stopping.
 
 ![Classification Results](Classification%20Results)
 
+
 ## Block Diagram 
 ![Block Diagram](Block%20Diagram.png)
+
+
+## Circuit Diagram
+
+
+![Circuit Diagram](Circuit%20Diagram.png)
+
 
 
 
