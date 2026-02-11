@@ -95,6 +95,18 @@ Epoch 10: early stopping.
 
 
 
+## Project Tools
+
+1-ESP32s ESP-WROOM-32 Development Board - WiFi+Bluetooth (NodeMCU) (38pin). 
+2-camera USB.
+3-7.4V 2600mAh Lithium Ion Battery 8.4V at Full charge. 
+4-DHT22 Digital Temperature and Humidity Sensor Module. 
+5-Soil Humidity Sensor Module. 
+6-LCD Module 16X4. 
+7-Ultrasonic Sensor HC-SR04. 
+8-Water Pump 120L/H DC 3V-5V. 
+9-Channel Relay Module with light coupling 5V OPTO COUPLERED.
+10-raspberry pi 
 
 
 
