@@ -118,6 +118,17 @@ Epoch 10: early stopping.
 10-raspberry pi 
 
 
+## Blynk app interface
+
+The app interface displays:
+
+- Sensor values
+  
+- Disease detection notifications
+
+  
+
+
 
 
 
