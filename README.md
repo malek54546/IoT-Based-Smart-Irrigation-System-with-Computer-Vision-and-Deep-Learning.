@@ -128,7 +128,7 @@ The app interface displays:
 
 
   
-![Blynk1](Blynk1.png)                                                                                                        ![Blynk2](Blynk2.png)
+![Blynk3](Blynk3.png)                                                                                                        ![Blynk2](Blynk2.png)
 
 
 
