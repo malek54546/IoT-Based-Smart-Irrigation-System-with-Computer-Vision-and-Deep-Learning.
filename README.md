@@ -82,6 +82,9 @@ Epoch 10: early stopping.
 
 https://drive.google.com/drive/folders/13Pvsk8UNOjJi7EyT-d-oNDM6-HNlCKIG?usp=sharing
 
+## Block Diagram 
+![Block Diagram](docs/Block Diagram.png)
+
 
 
 
