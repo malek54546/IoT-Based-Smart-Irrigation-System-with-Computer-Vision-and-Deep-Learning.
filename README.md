@@ -23,16 +23,22 @@ Plant Health Monitoring via MobileNetV2: the disease detection module, we implem
 
 - This training included 8 categories:
 
-  Apple___Apple_scab                                            Grape___Black_rot
+   Apple___Apple_scab                                            
   
-  Apple___Black_rot                                            	Grape___Esca_(Black_Measles)
+   Apple___Black_rot                                          
 
-	Apple___Cedar_apple_rust                                      Grape___Leaf_blight_(Isariopsis_Leaf_Spot)
+   Apple___Cedar_apple_rust                                      
 
-	Apple___healthy                                               Grape___healthy
+   Apple___healthy                                               
 
-
+   Grape___Black_rot
 	
+   Grape___Leaf_blight_(Isariopsis_Leaf_Spot)
+
+   Grape___healthy
+
+
+
 
 
 • Training Parameters:
