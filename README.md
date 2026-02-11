@@ -41,6 +41,12 @@ Plant Health Monitoring via MobileNetV2: the disease detection module, we implem
 
 
 
+
+
+
+
+
+
 • Training Parameters:
 
 o Image Input: Resized to 224x224 pixels.
