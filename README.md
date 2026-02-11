@@ -80,7 +80,7 @@ Epoch 10: early stopping.
 
 # Sample Plant Images and Classification Results: 
 
-https://drive.google.com/drive/folders/13Pvsk8UNOjJi7EyT-d-oNDM6-HNlCKIG?usp=sharing
+![Classification Results](Classification%20Results)
 
 ## Block Diagram 
 ![Block Diagram](Block%20Diagram.png)
