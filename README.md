@@ -163,6 +163,18 @@ The app interface displays:
 
 
 
+## Referanse
+
+dataset:
+
+- https://github.com/NouraAlgohary/Plant-Disease-Detection
+
+- https://data.mendeley.com/datasets/wkymf8bhcg/3
+
+
+
+
+
 
 
 
